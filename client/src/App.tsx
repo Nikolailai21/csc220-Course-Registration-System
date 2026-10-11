@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import AdvisorDashboard from './AdvisorDashboard';
 
 type StudentStatus = 'Enrolled' | 'On leave' | 'Graduated';
 type Student = {
@@ -45,20 +46,10 @@ function readPrograms(): string[] {
   };
 
   export default function App() {
-    const [showProgramForm, setShowProgramForm] = useState(false);
-
-    const [lecturersByProgram, setLecturersByProgram] = useState<
-      Record<string, { name: string; email: string }>
-      >(() => {
-    try {
-      return JSON.parse(localStorage.getItem('course-desk-lecturers') || '{}');
-    } catch {
-      return {};
-    }
-  });
+    const [showAdvisorDashboard, setShowAdvisorDashboard] = useState(false);
+    const [programs] = useState<string[]>(readPrograms);
 
   const [students, setStudents] = useState<Student[]>(readStudents);
-  const [programs, setPrograms] = useState<string[]>(readPrograms);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [programFilter, setProgramFilter] = useState('all');
@@ -71,21 +62,10 @@ function readPrograms(): string[] {
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(students)); }, [students]);
   
   useEffect(() => {
-  localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs));
-  }, [programs]);
-  
-  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(''), 3000);
     return () => window.clearTimeout(timer);
   }, [toast]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      'course-desk-lecturers',
-      JSON.stringify(lecturersByProgram),
-    );
-  }, [lecturersByProgram]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -104,30 +84,6 @@ function readPrograms(): string[] {
   const topStudents = [...enrolled].sort((a, b) => b.gpa - a.gpa).slice(0, 3);
 
   function notify(message: string) { setToast(message); }
-  
-  function addProgram(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = new FormData(event.currentTarget);
-    const name = String(form.get('programName')).trim();
-    const lecturerName = String(form.get('lecturerName')).trim();
-    const lecturerEmail = String(form.get('lecturerEmail')).trim().toLowerCase();
-
-    if (programs.some((program) => program.toLowerCase() === name.toLowerCase())) {
-      notify('That program already exists.');
-      return;
-    }
-
-    setPrograms((current) => [...current, name]);
-    setLecturersByProgram((current) => ({
-      ...current,
-      [name]: { name: lecturerName, email: lecturerEmail },
-    }));
-
-    setShowProgramForm(false);
-    notify(`${name} was added to the programs.`);
-  }
-
   function openProfile(student: Student) { setSelected(student); setModal('profile'); }
   function openEdit(student: Student) { setSelected(student); setModal('edit'); }
   function clearFilters() { setSearch(''); setStatusFilter('all'); setProgramFilter('all'); setPage(1); }
@@ -173,7 +129,9 @@ function readPrograms(): string[] {
     notify('Student list exported as CSV.');
   }
 
-  return <div className="student-app">
+  return showAdvisorDashboard
+    ? <AdvisorDashboard onBack={() => setShowAdvisorDashboard(false)} />
+    : <div className="student-app">
     
     <aside className="student-sidebar">
       <a className="student-brand" href="#top">
@@ -201,6 +159,13 @@ function readPrograms(): string[] {
     
       <button className="side-link">
         <span>▤</span>Programs<i>{programs.length}</i>
+      </button>
+
+      <button
+        className="side-link"
+        onClick={() => setShowAdvisorDashboard(true)}
+      >
+        <span>▣</span>Advisor workspace
       </button>
 
       <button className="side-link">
@@ -244,12 +209,6 @@ function readPrograms(): string[] {
           <div className="welcome-actions">
             <button className="outline-btn" onClick={exportCsv}>⇩ 
               <span>Export report</span>
-            </button>
-            <button
-              className="bright-btn"
-              onClick={() => setShowProgramForm(true)}
-            >
-              ＋ Add program
             </button>
           </div>
         </section>
@@ -452,65 +411,6 @@ function readPrograms(): string[] {
         onStatus={() => { changeStatus(selected); setModal(null); }} 
       />
     }
-    
-    {showProgramForm && (
-      <div
-        className="student-modal-backdrop"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) {
-            setShowProgramForm(false);
-          }
-        }}
-      >
-        <section className="student-modal" role="dialog" aria-modal="true">
-          <header>
-            <div>
-              <small>PROGRAM DETAILS</small>
-              <h2>Add a program</h2>
-              <p>Enter the program and its lecturer information.</p>
-            </div>
-            <button type="button" onClick={() => setShowProgramForm(false)}>
-              ×
-            </button>
-          </header>
-
-          <form onSubmit={addProgram}>
-            <label>
-              Program name
-            <input name="programName" placeholder="e.g. Data Science" required autoFocus />
-            </label>
-
-            <label>
-              Lecturer name
-              <input name="lecturerName" placeholder="e.g. Jamie Smith" required />
-            </label>
-
-            <label>
-              Lecturer email
-              <input
-                name="lecturerEmail"
-                type="email"
-                placeholder="lecturer@example.edu"
-                required
-              />
-            </label>
-
-            <div className="student-modal-actions">
-              <button
-                type="button"
-                className="outline-btn"
-                onClick={() => setShowProgramForm(false)}
-              >
-                Cancel
-              </button>
-              <button type="submit" className="bright-btn">
-                Save program <span>→</span>
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-    )}
 
     {toast && 
     <div className="student-toast"><span>✓</span>{toast}
