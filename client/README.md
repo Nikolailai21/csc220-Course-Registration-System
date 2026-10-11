@@ -1,21 +1,26 @@
 # Student Administration Dashboard
 
-A responsive student administration dashboard built with React, TypeScript, and Vite.
+A responsive student administration and advisor dashboard built with React, TypeScript, and Vite.
 
 ## Features
 
-- View and search student records
-- Filter students by status and program
+- View, search, and filter student records
 - Add and edit student records
-- Add programs with lecturer names and emails
 - Export student records as a CSV file
-- Save demo data in the browser
+- View course offerings and section details
+- Add, edit, and remove course sections
+- View seats taken and remaining for each section
+- Review a student's academic history and eligible courses
+- Create and remove course registrations
+- Open or close the add/drop window for a section
 
 ## Requirements
 
 - Node.js and npm
 
 ## Setup
+
+From the `client` folder, run:
 
 ```bash
 npm install
