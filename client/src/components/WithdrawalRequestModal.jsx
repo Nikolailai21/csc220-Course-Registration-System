@@ -48,7 +48,18 @@ export default function WithdrawalRequestModal({
     setSending(true);
     setError("");
     try {
-      setError("Request submission is not enabled in this branch.");
+      await apiFetch("/students/me/withdrawal-request-telegram", {
+        method: "POST",
+        body: JSON.stringify({
+          registrationId: registration._id,
+          requestType,
+          ...(requestType === "change_section" ? { targetOfferingId } : {}),
+          message: message.trim(),
+        }),
+      });
+      setSent(true);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setSending(false);
     }
