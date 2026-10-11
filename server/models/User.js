@@ -4,6 +4,8 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
+    telegramChatId: { type: String, trim: true, default: "" },
+    discordUserId: { type: String, trim: true, default: "" },
     passwordHash: { type: String, required: true },
     role: {
       type: String,

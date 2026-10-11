@@ -6,11 +6,16 @@ export default function AdminDashboard({ user: currentUser }) {
   const [roleFilter, setRoleFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
+  const [telegramChats, setTelegramChats] = useState([]);
+  const [telegramChatsError, setTelegramChatsError] = useState("");
+  const [loadingTelegramChats, setLoadingTelegramChats] = useState(false);
 
   // Create Form State
   const [form, setForm] = useState({
     name: "",
     email: "",
+    telegramChatId: "",
+    discordUserId: "",
     role: "student",
     studentId: "",
     password: "",
@@ -21,6 +26,8 @@ export default function AdminDashboard({ user: currentUser }) {
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
+    telegramChatId: "",
+    discordUserId: "",
     role: "student",
     studentId: "",
     active: true,
@@ -40,6 +47,19 @@ export default function AdminDashboard({ user: currentUser }) {
     loadUsers();
   }, [roleFilter]);
 
+  const loadTelegramChats = async () => {
+    setLoadingTelegramChats(true);
+    setTelegramChatsError("");
+    try {
+      const chats = await apiFetch("/telegram/chats");
+      setTelegramChats(chats);
+    } catch (err) {
+      setTelegramChatsError(err.message);
+    } finally {
+      setLoadingTelegramChats(false);
+    }
+  };
+
   // --- Create User ---
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -51,6 +71,8 @@ export default function AdminDashboard({ user: currentUser }) {
       setForm({
         name: "",
         email: "",
+        telegramChatId: "",
+        discordUserId: "",
         role: "student",
         studentId: "",
         password: "",
@@ -67,6 +89,8 @@ export default function AdminDashboard({ user: currentUser }) {
     setEditForm({
       name: u.name,
       email: u.email,
+      telegramChatId: u.telegramChatId || "",
+      discordUserId: u.discordUserId || "",
       role: u.role,
       studentId: u.studentId || "",
       active: u.active !== false,
@@ -295,6 +319,56 @@ export default function AdminDashboard({ user: currentUser }) {
             </select>
           </div>
 
+          {form.role === "advisor" && (
+            <div className="col-md-4">
+              <label className="form-label fw-semibold text-secondary small">
+                Advisor Telegram Chat ID
+              </label>
+              <input
+                className="form-control form-control-md shadow-none"
+                placeholder="Start the bot, then enter chat ID"
+                value={form.telegramChatId}
+                onChange={(e) =>
+                  setForm({ ...form, telegramChatId: e.target.value })
+                }
+              />
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm mt-2"
+                onClick={loadTelegramChats}
+                disabled={loadingTelegramChats}
+              >
+                {loadingTelegramChats ? "Checking Telegram..." : "Find Telegram chats"}
+              </button>
+              {telegramChats.length > 0 && (
+                <select
+                  className="form-select form-select-sm mt-2"
+                  value=""
+                  onChange={(e) =>
+                    setForm({ ...form, telegramChatId: e.target.value })
+                  }
+                >
+                  <option value="">Choose a chat from recent bot activity</option>
+                  {telegramChats.map((chat) => (
+                    <option key={chat.chatId} value={chat.chatId}>
+                      {chat.name}
+                      {chat.username ? ` (@${chat.username})` : ""} — {chat.chatId}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {telegramChatsError && (
+                <small className="text-danger d-block mt-2">
+                  {telegramChatsError}
+                </small>
+              )}
+              <small className="text-muted">
+                The advisor must message the bot first. Keep the bot token on
+                the server only.
+              </small>
+            </div>
+          )}
+
           {form.role === "student" && (
             <div className="col-md-4">
               <label className="form-label fw-semibold text-secondary small">
@@ -308,6 +382,26 @@ export default function AdminDashboard({ user: currentUser }) {
                   setForm({ ...form, studentId: e.target.value })
                 }
               />
+            </div>
+          )}
+
+          {form.role === "student" && (
+            <div className="col-md-4">
+              <label className="form-label fw-semibold text-secondary small">
+                Student Discord User ID
+              </label>
+              <input
+                className="form-control form-control-md shadow-none"
+                placeholder="Enable Developer Mode and copy user ID"
+                inputMode="numeric"
+                value={form.discordUserId}
+                onChange={(e) =>
+                  setForm({ ...form, discordUserId: e.target.value })
+                }
+              />
+              <small className="text-muted">
+                Required to DM this student their invoice.
+              </small>
             </div>
           )}
 
@@ -501,6 +595,11 @@ export default function AdminDashboard({ user: currentUser }) {
                               )}
                             </div>
                             <div className="text-muted small">{u.email}</div>
+                            {u.role === "advisor" && u.telegramChatId && (
+                              <div className="text-muted small">
+                                Telegram chat: {u.telegramChatId}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -656,22 +755,105 @@ export default function AdminDashboard({ user: currentUser }) {
                     </select>
                   </div>
 
-                  {editForm.role === "student" && (
+                  {editForm.role === "advisor" && (
                     <div>
                       <label className="form-label fw-semibold text-secondary small">
-                        Student ID
+                        Advisor Telegram Chat ID
                       </label>
                       <input
                         className="form-control shadow-none"
-                        value={editForm.studentId}
+                        value={editForm.telegramChatId}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
-                            studentId: e.target.value,
+                            telegramChatId: e.target.value,
                           })
                         }
+                        placeholder="Start the bot, then enter chat ID"
                       />
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm mt-2"
+                        onClick={loadTelegramChats}
+                        disabled={loadingTelegramChats}
+                      >
+                        {loadingTelegramChats
+                          ? "Checking Telegram..."
+                          : "Find Telegram chats"}
+                      </button>
+                      {telegramChats.length > 0 && (
+                        <select
+                          className="form-select form-select-sm mt-2"
+                          value=""
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              telegramChatId: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="">
+                            Choose a chat from recent bot activity
+                          </option>
+                          {telegramChats.map((chat) => (
+                            <option key={chat.chatId} value={chat.chatId}>
+                              {chat.name}
+                              {chat.username ? ` (@${chat.username})` : ""} —{" "}
+                              {chat.chatId}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {telegramChatsError && (
+                        <small className="text-danger d-block mt-2">
+                          {telegramChatsError}
+                        </small>
+                      )}
+                      <small className="text-muted">
+                        The advisor must message the bot first. Keep the bot
+                        token on the server only.
+                      </small>
                     </div>
+                  )}
+
+                  {editForm.role === "student" && (
+                    <>
+                      <div>
+                        <label className="form-label fw-semibold text-secondary small">
+                          Student ID
+                        </label>
+                        <input
+                          className="form-control shadow-none"
+                          value={editForm.studentId}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              studentId: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label fw-semibold text-secondary small">
+                          Student Discord User ID
+                        </label>
+                        <input
+                          className="form-control shadow-none"
+                          inputMode="numeric"
+                          value={editForm.discordUserId}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              discordUserId: e.target.value,
+                            })
+                          }
+                          placeholder="Enable Developer Mode and copy user ID"
+                        />
+                        <small className="text-muted">
+                          Required to DM this student their invoice.
+                        </small>
+                      </div>
+                    </>
                   )}
 
                   <div className="p-3 bg-light rounded-3 border">

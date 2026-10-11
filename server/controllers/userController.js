@@ -9,7 +9,7 @@ exports.getUsers = async (req, res) => {
     const filter = role ? { role } : {};
     const users = await User.find(filter)
       .select("-passwordHash")
-      .populate("advisorId", "name email");
+      .populate("advisorId", "name email telegramChatId");
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -25,6 +25,8 @@ exports.createUser = async (req, res) => {
       role,
       studentId,
       advisorId,
+      telegramChatId,
+      discordUserId,
     } = req.body;
     const existing = await User.findOne({ email });
     if (existing)
@@ -41,10 +43,44 @@ exports.createUser = async (req, res) => {
         return res.status(400).json({ message: "Student ID already exists" });
       }
     }
+    const normalizedTelegramChatId =
+      typeof telegramChatId === "string" ? telegramChatId.trim() : "";
+    const normalizedDiscordUserId =
+      typeof discordUserId === "string" ? discordUserId.trim() : "";
+    if (
+      role === "advisor" &&
+      normalizedTelegramChatId &&
+      !/^-?\d+$/.test(normalizedTelegramChatId)
+    ) {
+      return res.status(400).json({ message: "Enter a valid Telegram chat ID" });
+    }
+    if (
+      role === "student" &&
+      normalizedDiscordUserId &&
+      !/^\d{17,20}$/.test(normalizedDiscordUserId)
+    ) {
+      return res.status(400).json({ message: "Enter a valid Discord user ID" });
+    }
+    if (role === "student" && normalizedDiscordUserId) {
+      const existingDiscordUserId = await User.findOne({
+        role: "student",
+        discordUserId: normalizedDiscordUserId,
+      });
+      if (existingDiscordUserId) {
+        return res.status(400).json({
+          message: "This Discord user ID is already linked to a student",
+        });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password || "password123", 10);
     const user = await User.create({
       name,
       email,
+      telegramChatId:
+        role === "advisor" ? normalizedTelegramChatId : "",
+      discordUserId:
+        role === "student" ? normalizedDiscordUserId : "",
       passwordHash,
       role,
       studentId: normalizedStudentId,
@@ -68,6 +104,8 @@ exports.updateUser = async (req, res) => {
       active,
       studentId,
       advisorId,
+      telegramChatId,
+      discordUserId,
     } = req.body;
     const normalizedStudentId =
       typeof studentId === "string" ? studentId.trim() : studentId;
@@ -88,6 +126,49 @@ exports.updateUser = async (req, res) => {
         return res.status(400).json({ message: "Student ID already exists" });
       }
     }
+    if (telegramChatId !== undefined || updatedRole !== user.role) {
+      const normalizedTelegramChatId =
+        typeof telegramChatId === "string"
+          ? telegramChatId.trim()
+          : "";
+      if (
+        updatedRole === "advisor" &&
+        normalizedTelegramChatId &&
+        !/^-?\d+$/.test(normalizedTelegramChatId)
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Enter a valid Telegram chat ID" });
+      }
+      user.telegramChatId =
+        updatedRole === "advisor" ? normalizedTelegramChatId : "";
+    }
+    if (discordUserId !== undefined || updatedRole !== user.role) {
+      const normalizedDiscordUserId =
+        typeof discordUserId === "string" ? discordUserId.trim() : "";
+      if (
+        updatedRole === "student" &&
+        normalizedDiscordUserId &&
+        !/^\d{17,20}$/.test(normalizedDiscordUserId)
+      ) {
+        return res.status(400).json({ message: "Enter a valid Discord user ID" });
+      }
+      if (updatedRole === "student" && normalizedDiscordUserId) {
+        const existingDiscordUserId = await User.findOne({
+          role: "student",
+          discordUserId: normalizedDiscordUserId,
+          _id: { $ne: user._id },
+        });
+        if (existingDiscordUserId) {
+          return res.status(400).json({
+            message: "This Discord user ID is already linked to a student",
+          });
+        }
+      }
+      user.discordUserId =
+        updatedRole === "student" ? normalizedDiscordUserId : "";
+    }
+
     if (name !== undefined) user.name = name;
     if (email !== undefined) user.email = email;
     if (role !== undefined) user.role = role;
