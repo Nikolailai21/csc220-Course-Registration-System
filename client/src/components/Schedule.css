@@ -1,0 +1,130 @@
+.schedule-container {
+  overflow-x: auto;
+  border-color: #dbe4f0 !important;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 5%) !important;
+}
+
+.schedule-wrapper {
+  min-width: 920px;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 72px repeat(5, minmax(0, 1fr));
+  grid-template-rows: auto 1fr;
+  border: 1px solid #dbe4f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+.time-col-header,
+.day-header {
+  min-height: 40px;
+  border-bottom: 1px solid #dbe4f0;
+  background: #f5f8fc;
+  color: #475569;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-left: 1px solid #dbe4f0;
+  font-size: 0.9rem;
+}
+
+.time-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+.time-slot {
+  position: relative;
+  height: 72px;
+}
+
+.time-label {
+  position: absolute;
+  top: -0.55rem;
+  right: 0.6rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-label-start {
+  top: 0.35rem;
+}
+
+.time-label-end {
+  right: 0.6rem;
+  bottom: 0.35rem;
+  top: auto;
+}
+
+.day-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e2e8f0;
+  background: repeating-linear-gradient(
+    to bottom,
+    #fff 0,
+    #fff 71px,
+    #edf2f7 71px,
+    #edf2f7 72px
+  );
+}
+
+.grid-cell {
+  height: 72px;
+  border-bottom: 1px solid rgb(226 232 240 / 45%);
+  pointer-events: none;
+}
+
+.class-card {
+  position: absolute;
+  z-index: 1;
+  right: 4px;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0.7rem !important;
+  border-left: 4px solid #1e40af;
+  border-radius: 0.45rem !important;
+  background: linear-gradient(145deg, #2563eb, #0d6efd);
+  box-shadow: 0 3px 8px rgb(37 99 235 / 20%);
+  line-height: 1.25;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.class-card:hover {
+  z-index: 2;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgb(37 99 235 / 28%);
+}
+
+.class-card .fs-7 {
+  font-size: 0.85rem;
+}
+
+.class-card .fs-8 {
+  font-size: 0.75rem;
+}
+
+@media (max-width: 575.98px) {
+  .schedule-container {
+    padding: 1rem !important;
+  }
+
+  .schedule-wrapper {
+    min-width: 920px;
+  }
+}
