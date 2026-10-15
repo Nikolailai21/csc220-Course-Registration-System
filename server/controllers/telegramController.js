@@ -97,15 +97,37 @@ exports.sendAddDropNotification = async (req, res) => {
       _id: req.user.id,
       role: "student",
       active: true,
-    }).populate("advisorId", "name telegramChatId");
+    }).populate("advisorId", "name");
     if (!student) {
       return res.status(404).json({ message: "Student account not found" });
     }
     const advisor = student.advisorId;
-    if (!advisor?.telegramChatId) {
+    if (!advisor) {
       return res.status(400).json({
         message:
-          "Your assigned advisor has not connected Telegram. Contact an administrator.",
+          "You do not have an assigned advisor. Contact an administrator.",
+      });
+    }
+
+    const activeAdvisors = await User.find({
+      role: "advisor",
+      active: true,
+    }).select("name telegramChatId");
+    const recipientsByChatId = new Map();
+    for (const activeAdvisor of activeAdvisors) {
+      const chatId = activeAdvisor.telegramChatId?.trim();
+      if (chatId && !recipientsByChatId.has(chatId)) {
+        recipientsByChatId.set(chatId, {
+          name: activeAdvisor.name,
+          telegramChatId: chatId,
+        });
+      }
+    }
+    const telegramRecipients = [...recipientsByChatId.values()];
+    if (telegramRecipients.length === 0) {
+      return res.status(400).json({
+        message:
+          "No active advisor has connected Telegram. Ask an administrator to link advisor chat IDs.",
       });
     }
 
@@ -185,6 +207,7 @@ exports.sendAddDropNotification = async (req, res) => {
         ? "🗿 COURSE DROP REQUEST"
         : "🔄 COURSE SECTION CHANGE REQUEST",
       `Student: ${student.name} (${student.studentId || "ID not set"})`,
+      `Assigned advisor: ${advisor.name}`,
       `Term: ${registration.term}`,
       `Course: ${course.code} — ${course.title}`,
       `Current section: ${offering.section} (${offering.day} ${offering.startTime}-${offering.endTime})`,
@@ -213,40 +236,74 @@ exports.sendAddDropNotification = async (req, res) => {
     addDropRequestId = addDropRequest._id;
 
     operation = "sending the request to Telegram";
-    const response = await fetch(telegramApi("sendMessage"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: advisor.telegramChatId,
-        text,
+    const deliveryResults = await Promise.all(
+      telegramRecipients.map(async (recipient) => {
+        try {
+          const response = await fetch(telegramApi("sendMessage"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: recipient.telegramChatId,
+              text,
+            }),
+          });
+          const result = await response.json();
+          return {
+            recipient,
+            delivered: response.ok && result.ok,
+            errorCode: result.error_code,
+            error: result.description || `HTTP ${response.status}`,
+          };
+        } catch (err) {
+          return {
+            recipient,
+            delivered: false,
+            error: err.message,
+          };
+        }
       }),
-    });
-    const result = await response.json();
-    if (!response.ok || !result.ok) {
-      await AddDropRequest.deleteOne({
-        _id: addDropRequest._id,
-        status: "pending",
-      });
-      addDropRequestId = null;
+    );
+    const failedDeliveries = deliveryResults.filter(
+      (delivery) => !delivery.delivered,
+    );
+    if (failedDeliveries.length > 0) {
       console.error(
-        "Telegram sendMessage failed:",
-        result.description || response.status,
+        "Telegram sendMessage failed for advisor(s):",
+        failedDeliveries.map(
+          ({ recipient, error }) => `${recipient.name}: ${error}`,
+        ),
       );
-      if (result.error_code === 400 || result.error_code === 403) {
-        return res.status(400).json({
+      if (failedDeliveries.length === telegramRecipients.length) {
+        await AddDropRequest.deleteOne({
+          _id: addDropRequest._id,
+          status: "pending",
+        });
+        addDropRequestId = null;
+        if (
+          failedDeliveries.every(({ errorCode }) =>
+            [400, 403].includes(errorCode),
+          )
+        ) {
+          return res.status(400).json({
+            message:
+              "Telegram could not deliver this notification. Ask each advisor to start the bot and verify their Telegram chat ID.",
+          });
+        }
+        return res.status(502).json({
           message:
-            "Telegram could not deliver this notification. Ask the advisor to start the bot and verify their Telegram chat ID.",
+            "Telegram could not send the request. Try again later.",
         });
       }
       return res.status(502).json({
-        message:
-          "Telegram could not send the withdrawal request. Try again later.",
+        message: `The request was saved, but Telegram delivery failed for ${failedDeliveries.length} of ${telegramRecipients.length} advisors. Check the server log and advisor chat IDs.`,
+        requestId: addDropRequest._id,
       });
     }
 
     res.json({
-      message: "Course request sent to your advisor on Telegram",
+      message: "Course request sent to all Telegram-connected advisors",
       advisorName: advisor.name,
+      notifiedAdvisorCount: telegramRecipients.length,
       requestId: addDropRequest._id,
     });
   } catch (err) {

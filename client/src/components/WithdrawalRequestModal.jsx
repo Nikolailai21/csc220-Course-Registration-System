@@ -90,7 +90,7 @@ export default function WithdrawalRequestModal({
             {sent ? (
               <>
                 <div className="alert alert-success mb-3" role="status">
-                  Request sent to your advisor on Telegram.
+                  Request sent to all Telegram-connected advisors. Your assigned advisor will review it.
                 </div>
               </>
             ) : (

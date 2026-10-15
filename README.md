@@ -111,13 +111,13 @@ Other advisor and student demo accounts are also created by `server/seed.js`. Th
 
 ## Telegram setup
 
-Telegram is used to notify a student's assigned advisor about add/drop or section-change requests.
+Telegram is used to notify all active advisors with linked Telegram chats about add/drop or section-change requests. The student's assigned advisor remains responsible for reviewing the request.
 
 1. Create a bot with Telegram's `@BotFather`.
 2. Set the bot token as `TELEGRAM_BOT_TOKEN` in `server/.env`, then restart the API.
 3. Have the advisor open the bot and press **Start**. The bot needs recent private-chat updates available through `getUpdates`; a configured webhook may prevent this polling-based chat lookup.
 4. Sign in as an administrator, edit or create the advisor account, and use **Find Telegram chats** to link the advisor's private chat.
-5. A student can submit a request from their registered course; the assigned advisor receives the request details through Telegram.
+5. A student can submit a request from their registered course; all active advisors with linked Telegram chats receive the request details. The assigned advisor reviews it in the advisor portal.
 
 Keep the Telegram token on the server only.
 

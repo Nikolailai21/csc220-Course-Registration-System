@@ -1846,7 +1846,7 @@ export default function StudentDashboard({ user }) {
               Department of Computer Science
             </p>
             <span className="dashboard-caption text-secondary">
-              Add/drop requests are sent to your advisor through Telegram.
+              Add/drop requests are sent to all Telegram-connected advisors. Your assigned advisor reviews them.
             </span>
           </div>
         </div>
